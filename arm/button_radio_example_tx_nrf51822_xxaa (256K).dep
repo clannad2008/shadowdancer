@@ -1,0 +1,69 @@
+Dependencies for Project 'button_radio_example_tx', Target 'nrf51822_xxaa (256K)': (DO NOT MODIFY !)
+F (..\..\..\..\Source\keil_arm_uv4.lnt)(0x53B24524)()
+F (..\main_tx.c)(0x5481C5F7)(-c --cpu Cortex-M0 -D__MICROLIB --li -g -O0 --apcs=interwork --split_sections -I..\..\..\..\Include --c99-I d:\Keil_v5\ARM\RV31\INC-I d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include-DNRF51 -DNRF51 -DBOARD_PCA10001 -o .\_build\main_tx.o --omf_browse .\_build\main_tx.crf --depend .\_build\main_tx.d)
+I (d:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x52FDD27E)
+I (d:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x52FDD27E)
+I (..\radio_config.h)(0x53B2458E)
+I (..\..\..\..\Include\nrf_gpio.h)(0x53B2457E)
+I (..\..\..\..\Include\nrf51.h)(0x53B246B4)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cm0.h)(0x512C1E62)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmInstr.h)(0x51BA6374)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmFunc.h)(0x512C1E62)
+I (..\..\..\..\Include\system_nrf51.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_bitfields.h)(0x53B246B4)
+I (..\..\..\..\Include\boards.h)(0x53B24588)
+I (..\..\..\..\Include\boards/pca10001.h)(0x53B2458A)
+F (..\radio_config.c)(0x5481C3A7)(-c --cpu Cortex-M0 -D__MICROLIB --li -g -O0 --apcs=interwork --split_sections -I..\..\..\..\Include --c99-I d:\Keil_v5\ARM\RV31\INC-I d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include-DNRF51 -DNRF51 -DBOARD_PCA10001 -o .\_build\radio_config.o --omf_browse .\_build\radio_config.crf --depend .\_build\radio_config.d)
+I (..\radio_config.h)(0x53B2458E)
+I (..\..\..\..\Include\nrf_delay.h)(0x53B2457E)
+I (..\..\..\..\Include\nrf.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51.h)(0x53B246B4)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cm0.h)(0x512C1E62)
+I (d:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x52FDD27E)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmInstr.h)(0x51BA6374)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmFunc.h)(0x512C1E62)
+I (..\..\..\..\Include\system_nrf51.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_bitfields.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_deprecated.h)(0x53B246B4)
+I (..\..\..\..\Include\compiler_abstraction.h)(0x53B246B4)
+F (..\..\..\..\Source\templates\arm\arm_startup_nrf51.s)(0x53B246B4)(--cpu Cortex-M0 --li -g --apcs=interwork --pd "__MICROLIB SETA 1"-I d:\Keil_v5\ARM\RV31\INC-I d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include--list .\_build\startup_arm_nrf51.lst --xref -o .\_build\startup_arm_nrf51.o --depend .\_build\startup_arm_nrf51.d)
+F (..\..\..\..\Source\templates\system_nrf51.c)(0x53B246B4)(-c --cpu Cortex-M0 -D__MICROLIB --li -g -O0 --apcs=interwork --split_sections -I..\..\..\..\Include --c99-I d:\Keil_v5\ARM\RV31\INC-I d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include-DNRF51 -DNRF51 -DBOARD_PCA10001 -o .\_build\system_nrf51.o --omf_browse .\_build\system_nrf51.crf --depend .\_build\system_nrf51.d)
+I (d:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x52FDD27E)
+I (d:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x52FDD27E)
+I (..\..\..\..\Include\nrf.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51.h)(0x53B246B4)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cm0.h)(0x512C1E62)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmInstr.h)(0x51BA6374)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmFunc.h)(0x512C1E62)
+I (..\..\..\..\Include\system_nrf51.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_bitfields.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_deprecated.h)(0x53B246B4)
+I (..\..\..\..\Include\compiler_abstraction.h)(0x53B246B4)
+F (..\..\..\..\Source\simple_uart\simple_uart.c)(0x53B24574)(-c --cpu Cortex-M0 -D__MICROLIB --li -g -O0 --apcs=interwork --split_sections -I..\..\..\..\Include --c99-I d:\Keil_v5\ARM\RV31\INC-I d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include-DNRF51 -DNRF51 -DBOARD_PCA10001 -o .\_build\simple_uart.o --omf_browse .\_build\simple_uart.crf --depend .\_build\simple_uart.d)
+I (d:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x52FDD27E)
+I (..\..\..\..\Include\nrf.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51.h)(0x53B246B4)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cm0.h)(0x512C1E62)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmInstr.h)(0x51BA6374)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmFunc.h)(0x512C1E62)
+I (..\..\..\..\Include\system_nrf51.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_bitfields.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_deprecated.h)(0x53B246B4)
+I (..\..\..\..\Include\compiler_abstraction.h)(0x53B246B4)
+I (..\..\..\..\Include\simple_uart.h)(0x53B2458A)
+I (d:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x52FDD27E)
+I (..\..\..\..\Include\nrf_delay.h)(0x53B2457E)
+I (..\..\..\..\Include\nrf_gpio.h)(0x53B2457E)
+F (..\..\..\..\Source\nrf_delay\nrf_delay.c)(0x53B2451E)(-c --cpu Cortex-M0 -D__MICROLIB --li -g -O0 --apcs=interwork --split_sections -I..\..\..\..\Include --c99-I d:\Keil_v5\ARM\RV31\INC-I d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include-DNRF51 -DNRF51 -DBOARD_PCA10001 -o .\_build\nrf_delay.o --omf_browse .\_build\nrf_delay.crf --depend .\_build\nrf_delay.d)
+I (d:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x52FDD27E)
+I (..\..\..\..\Include\compiler_abstraction.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51.h)(0x53B246B4)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cm0.h)(0x512C1E62)
+I (d:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x52FDD27E)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmInstr.h)(0x51BA6374)
+I (d:\Keil_v5\ARM\PACK\ARM\CMSIS\3.20.4\CMSIS\Include\core_cmFunc.h)(0x512C1E62)
+I (..\..\..\..\Include\system_nrf51.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_bitfields.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf51_deprecated.h)(0x53B246B4)
+I (..\..\..\..\Include\nrf_delay.h)(0x53B2457E)
