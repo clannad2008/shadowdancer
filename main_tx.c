@@ -106,8 +106,7 @@ int main(void)
 
 void RADIO_IRQHandler()
 {
-      
-        while (1);
+
 }
 /**
  *@}
