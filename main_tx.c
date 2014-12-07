@@ -52,7 +52,9 @@ void init(void)
 void test(void)
 {
 }
-
+void test_1(void)
+{
+}
 /**
  * @brief Function for application main entry.
  * @return 0. int return type required by ANSI/ISO standard.
