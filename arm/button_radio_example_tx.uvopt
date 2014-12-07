@@ -951,8 +951,8 @@
       <Focus>0</Focus>
       <ColumnNumber>0</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>90</TopLine>
-      <CurrentLine>109</CurrentLine>
+      <TopLine>19</TopLine>
+      <CurrentLine>1</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\main_tx.c</PathWithFileName>
       <FilenameWithoutPath>main_tx.c</FilenameWithoutPath>
@@ -991,7 +991,7 @@
       <Focus>0</Focus>
       <ColumnNumber>0</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>121</TopLine>
+      <TopLine>123</TopLine>
       <CurrentLine>125</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\..\..\..\Source\templates\arm\arm_startup_nrf51.s</PathWithFileName>
