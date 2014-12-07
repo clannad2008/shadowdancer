@@ -49,6 +49,9 @@ void init(void)
   
     nrf_gpio_range_cfg_input(BUTTON_START, BUTTON_STOP, BUTTON_PULL);
 }
+void test(void)
+{
+}
 
 /**
  * @brief Function for application main entry.
