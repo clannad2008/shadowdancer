@@ -1,0 +1,885 @@
+// impletmets some fundamental cryptography functions.
+#include<stdio.h>
+#include<string.h>
+#include<stdarg.h>
+#include<stdbool.h>
+#include<openssl/aes.h>
+#include<openssl/bio.h>
+#include<openssl/bn.h>
+#include<openssl/cmac.h>
+#include<openssl/ec.h>
+
+/****************************************
+
+        Macro Definition
+
+*****************************************/
+
+#define ORDER_LITTLE_ENDIAN  0
+#define ORDER_BIG_ENDIAN     1
+
+#define KEY_128BIT_LEN 16
+#define KEY_128BIT_STR_LEN (KEY_128BIT_LEN * 2)
+
+#define MAX_PASSKEY_VAL (999999)
+
+#define F4_FUNCTION_MSG_LEN (32/*U*/ + 32/*V*/ + 1/*Z*/)
+#define F5_FUNCTION_MSG_LEN (1/*Counter*/ + 4/*keyID*/ + 16/*N1*/ + 16/*N2*/ + \
+                             7/*A1*/ + 7/*A2*/ + 2/*Length*/)
+#define F6_FUNCTION_MSG_LEN (16/*N1*/ + 16/*N2*/ + 16 /*R*/ + 3/*IOcap*/ + \
+                             7/*A1*/ + 7/*A2*/)
+#define G2_FUNCTION_MSG_LEN (32/*U*/ + 32/*V*/ + 16/*16*/)
+#define H6_FUNCTION_MSG_LEN 4
+#define H7_FUNCITON_MSG_LEN 16
+
+#define UNUSED(p)  (void*)(p)
+
+#ifndef FALSE
+#define FALSE false
+#endif
+#ifndef TRUE
+#define TRUE  true
+#endif
+
+#define VERBOSE_RAW_DATA TRUE
+
+
+#define ARRAY_TO_STREAM(p, a, len)                                      \
+{                                                                       \
+    int ijk;                                                            \
+    for (ijk = 0; ijk < (len); ijk++) *(p)++ = (unsigned char)(a)[ijk]; \
+}
+
+#define STREAM_TO_ULONG(ulong, p)                                       \
+{                                                                       \
+    (ulong) = (((unsigned long)(*(p))) +                                \
+              ((((unsigned long)(*((p) + 1)))) << 8) +                  \
+              ((((unsigned long)(*((p) + 2)))) << 16) +                 \
+              ((((unsigned long)(*((p) + 3)))) << 24));                 \
+    (p) += 4;                                                           \
+}
+
+
+/****************************************
+
+        Test Date
+
+*****************************************/
+
+//key
+const unsigned char userKey[16] = {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 
+                                   0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c};                                   
+
+//aes-128 encryption
+const unsigned char plaintext[16] = {0x00};
+
+char *userKey_s = "2b7e151628aed2a6abf7158809cf4f3c";
+
+char *IRK = "ec0234a357c8ad05341010a60a397d9b";
+
+char *prand = "00000000000000000000000000708194";
+
+const unsigned char prand_a[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                   0x00, 0x00, 0x00, 0x00, 0x00, 0x70, 0x81, 0x94};
+
+//aes-cmac test msg
+char *msg_16 = "6bc1bee22e409f96e93d7e117393172a";
+char *msg_40 = "6bc1bee22e409f96e93d7e117393172a"
+               "ae2d8a571e03ac9c9eb76fac45af8e51"
+               "30c81c46a35ce411";
+char *msg_64 = "6bc1bee22e409f96e93d7e117393172a"
+               "ae2d8a571e03ac9c9eb76fac45af8e51"
+               "30c81c46a35ce411e5fbc1191a0a52ef"
+               "f69f2445df4f9b17ad2b417be66c3710";
+
+//ecdh test
+char *priv_key1 = "00000000000000000000000000000000"
+                  "00000000000000000000000000000001";
+// local private key
+//01 a3 85 69 c7 ba 38 19 49 0b 59 53 97 5f b4 e8
+//01 b7 94 e7 60 bf 85 c3 51 9d 49 1b 7e 8b 84 ca
+char *priv_key =  "ca848b7e1b499d51c385bf60e794b701"
+                  "e8b45f9753590b491938bac76985a301";
+
+//remote public key(from log)
+// x:
+// 21 4b 2d d4 66 7a 7a 9e 42 4c 41 28 6e 6f 8c 1d
+// 5b 8f 2f f5 2b 5c e1 6e 0a 69 1e ca de 69 99 c1
+// y:
+// a5 86 22 13 00 41 86 a8 8b db 4e f1 bb 48 af 4e
+// 78 17 98 68 1d 21 01 92 0d 0e d5 b8 f2 47 12 21
+char *remote_public_x = "c19969deca1e690a6ee15c2bf52f8f5b"
+                        "1d8c6f6e28414c429e7a7a66d42d4b21";
+char *remote_public_y = "211247f2b8d50e0d9201211d68981778"
+                        "4eaf48bbf14edb8ba8864100132286a5";
+
+//used for f4 function(from spec sample data)
+//U:
+//20 b0 03 d2 f2 97 be 2c 5e 2c 83 a7 e9 f9 a5 b9
+//ef f4 91 11 ac f4 fd db cc 03 01 48 0e 35 9d e6
+//V:
+//55 18 8b 3d 32 f6 bb 9a 90 0a fc fb ee d4 e7 2a
+//59 cb 9a c2 f1 9d 7c fb 6b 4f dd 49 f4 7f c5 fd
+//X:
+//d5 cb 84 54 d1 77 73 3e ff ff b2 ec 71 2b ae ab
+//Z:
+//0x00
+
+unsigned char U[32] = {0x20, 0xb0, 0x03, 0xd2, 0xf2, 0x97, 0xbe, 0x2c,
+                       0x5e, 0x2c, 0x83, 0xa7, 0xe9, 0xf9, 0xa5, 0xb9,
+                       0xef, 0xf4, 0x91, 0x11, 0xac, 0xf4, 0xfd, 0xdb,
+                       0xcc, 0x03, 0x01, 0x48, 0x0e, 0x35, 0x9d, 0xe6};
+unsigned char V[32] = {0x55, 0x18, 0x8b, 0x3d, 0x32, 0xf6, 0xbb, 0x9a,
+                       0x90, 0x0a, 0xfc, 0xfb, 0xee, 0xd4, 0xe7, 0x2a,
+                       0x59, 0xcb, 0x9a, 0xc2, 0xf1, 0x9d, 0x7c, 0xfb,
+                       0x6b, 0x4f, 0xdd, 0x49, 0xf4, 0x7f, 0xc5, 0xfd};
+unsigned char X[16] = {0xd5, 0xcb, 0x84, 0x54, 0xd1, 0x77, 0x73, 0x3e,
+                       0xff, 0xff, 0xb2, 0xec, 0x71, 0x2b, 0xae, 0xab};
+unsigned char Z = 0x00;
+
+//used for f5 function(from spec sample data)
+//DHKey(W):
+//ec 02 34 a3 57 c8 ad 05 34 10 10 a6 0a 39 7d 9b
+//99 79 6b 13 b4 f8 66 f1 86 8d 34 f3 73 bf a6 98
+//SALT:
+//6C 88 83 91 aa f5 a5 38 60 37 0b db 5a 60 83 be
+//keyID:
+//62 74 6c 65
+//N1:
+//d5 cb 84 54 d1 77 73 3e ff ff b2 ec 71 2b ae ab
+//N2:
+//a6 e8 e7 cc 25 a7 5f 6e 21 65 83 f7 ff 3d c4 cf
+//A1:
+//00 56 12 37 37 bf ce
+//A2:
+//00 a7 13 70 2d cf c1
+//Length
+//01 00
+
+unsigned char f5_dhkey[] = {0xec, 0x02, 0x34, 0xa3, 0x57, 0xc8, 0xad, 0x05,
+                            0x34, 0x10, 0x10, 0xa6, 0x0a, 0x39, 0x7d, 0x9b,
+                            0x99, 0x79, 0x6b, 0x13, 0xb4, 0xf8, 0x66, 0xf1,
+                            0x86, 0x8d, 0x34, 0xf3, 0x73, 0xbf, 0xa6, 0x98};
+unsigned char f5_N1[]    = {0xd5, 0xcb, 0x84, 0x54, 0xd1, 0x77, 0x73, 0x3e,
+                            0xff, 0xff, 0xb2, 0xec, 0x71, 0x2b, 0xae, 0xab};
+unsigned char f5_N2[]    = {0xa6, 0xe8, 0xe7, 0xcc, 0x25, 0xa7, 0x5f, 0x6e,
+                            0x21, 0x65, 0x83, 0xf7, 0xff, 0x3d, 0xc4, 0xcf};
+unsigned char f5_A1[]    = {0x00, 0x56, 0x12, 0x37, 0x37, 0xbf, 0xce};
+unsigned char f5_A2[]    = {0x00, 0xa7, 0x13, 0x70, 0x2d, 0xcf, 0xc1};
+
+//used for f6 function(from spec sample data)
+//N1:
+//d5 cb 84 54 d1 77 73 3e ff ff b2 ec 71 2b ae ab
+//N2:
+//a6 e8 e7 cc 25 a7 5f 6e 21 65 83 f7 ff 3d c4 cf
+//MacKey:
+//29 65 f1 76 a1 08 4a 02 fd 3f 6a 20 ce 63 6e 20
+//R:
+//12 a3 34 3b b4 53 bb 54 08 da 42 d2 0c 2d 0f c8
+//IOcap:
+//01 01 02
+//A1:
+//00 56 12 37 37 bf ce
+//A2:
+//00 a7 13 70 2d cf c1
+
+unsigned char f6_N1[]     = {0xd5, 0xcb, 0x84, 0x54, 0xd1, 0x77, 0x73, 0x3e,
+                             0xff, 0xff, 0xb2, 0xec, 0x71, 0x2b, 0xae, 0xab};
+unsigned char f6_N2[]     = {0xa6, 0xe8, 0xe7, 0xcc, 0x25, 0xa7, 0x5f, 0x6e,
+                             0x21, 0x65, 0x83, 0xf7, 0xff, 0x3d, 0xc4, 0xcf};
+unsigned char f6_MacKey[] = {0x29, 0x65, 0xf1, 0x76, 0xa1, 0x08, 0x4a, 0x02,
+                             0xfd, 0x3f, 0x6a, 0x20, 0xce, 0x63, 0x6e, 0x20};
+unsigned char f6_R[]      = {0x12, 0xa3, 0x34, 0x3b, 0xb4, 0x53, 0xbb, 0x54,
+                             0x08, 0xda, 0x42, 0xd2, 0x0c, 0x2d, 0x0f, 0xc8};
+unsigned char f6_IOcap[]  = {0x01, 0x01, 0x02};
+unsigned char f6_A1[]     = {0x00, 0x56, 0x12, 0x37, 0x37, 0xbf, 0xce};
+unsigned char f6_A2[]     = {0x00, 0xa7, 0x13, 0x70, 0x2d, 0xcf, 0xc1};
+
+//used for g2 function(from spec sample data)
+//U:
+//20 b0 03 d2 f2 97 be 2c 5e 2c 83 a7 e9 f9 a5 b9
+//ef f4 91 11 ac f4 fd db cc 03 01 48 0e 35 9d e6
+//V:
+//55 18 8b 3d 32 f6 bb 9a 90 0a fc fb ee d4 e7 2a
+//59 cb 9a c2 f1 9d 7c fb 6b 4f dd 49 f4 7f c5 fd
+//X:
+//d5 cb 84 54 d1 77 73 3e ff ff b2 ec 71 2b ae ab
+//Y:
+//a6 e8 e7 cc 25 a7 5f 6e 21 65 83 f7 ff 3d c4 cf
+
+unsigned char g2_U[]  = {0x20, 0xb0, 0x03, 0xd2, 0xf2, 0x97, 0xbe, 0x2c,
+                         0x5e, 0x2c, 0x83, 0xa7, 0xe9, 0xf9, 0xa5, 0xb9,
+                         0xef, 0xf4, 0x91, 0x11, 0xac, 0xf4, 0xfd, 0xdb,
+                         0xcc, 0x03, 0x01, 0x48, 0x0e, 0x35, 0x9d, 0xe6};
+unsigned char g2_V[]  = {0x55, 0x18, 0x8b, 0x3d, 0x32, 0xf6, 0xbb, 0x9a,
+                         0x90, 0x0a, 0xfc, 0xfb, 0xee, 0xd4, 0xe7, 0x2a,
+                         0x59, 0xcb, 0x9a, 0xc2, 0xf1, 0x9d, 0x7c, 0xfb,
+                         0x6b, 0x4f, 0xdd, 0x49, 0xf4, 0x7f, 0xc5, 0xfd};
+unsigned char g2_X[]  = {0xd5, 0xcb, 0x84, 0x54, 0xd1, 0x77, 0x73, 0x3e,
+                         0xff, 0xff, 0xb2, 0xec, 0x71, 0x2b, 0xae, 0xab};
+unsigned char g2_Y[]  = {0xa6, 0xe8, 0xe7, 0xcc, 0x25, 0xa7, 0x5f, 0x6e,
+                         0x21, 0x65, 0x83, 0xf7, 0xff, 0x3d, 0xc4, 0xcf};
+
+//used for h6 function(from spec sample data)
+//Key:
+//ec 02 34 a3 57 c8 ad 05 34 10 10 a6 0a 39 7d 9b
+//KeyID:
+//6c 65 62 72
+
+unsigned char h6_Key[]    = {0xec, 0x02, 0x34, 0xa3, 0x57, 0xc8, 0xad, 0x05,
+                             0x34, 0x10, 0x10, 0xa6, 0x0a, 0x39, 0x7d, 0x9b};
+unsigned char h6_keyID[]  = {0x6c, 0x65, 0x62, 0x72};
+
+//used for h7 function(from spec sample data)
+//Key: same as h6
+//SALT:
+//00 00 00 00 00 00 00 00 00 00 00 00 74 6D 70 31
+
+unsigned char h7_Key[]    = {0xec, 0x02, 0x34, 0xa3, 0x57, 0xc8, 0xad, 0x05,
+                             0x34, 0x10, 0x10, 0xa6, 0x0a, 0x39, 0x7d, 0x9b};
+unsigned char h7_SALT[]   = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0x00, 0x00, 0x00, 0x00, 0x74, 0x6d, 0x70, 0x31};
+
+//used for c1 function(from spec cryptography toolbox)
+//k:
+//00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+//r:
+//57 83 D5 21 56 AD 6F 0E 63 88 27 4E C6 70 2E E0
+//pres:
+//05 00 08 00 00 03 02
+//preq:
+//07 07 10 00 00 01 01
+//iat:
+//01
+//ia:
+//A1 A2 A3 A4 A5 A6
+//ra:
+//B1 B2 B3 B4 B5 B6
+
+unsigned char c1_key[16]    = {0x00};
+unsigned char c1_r[]        = {0x57, 0x83, 0xd5, 0x21, 0x56, 0xad, 0x6f, 0x0e,
+                               0x63, 0x88, 0x27, 0x4e, 0xc6, 0x70, 0x2e, 0xe0};
+unsigned char c1_pres[]     = {0x05, 0x00, 0x08, 0x00, 0x00, 0x03, 0x02};
+unsigned char c1_preq[]     = {0x07, 0x07, 0x10, 0x00, 0x00, 0x01, 0x01};
+unsigned char c1_iat[]      = {0x01};
+unsigned char c1_rat[]      = {0x00};
+unsigned char c1_ia[]       = {0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6};
+unsigned char c1_ra[]       = {0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6};
+
+//used for s1 function(from spec cryptography toolbox)
+//k:
+//00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+//r1:
+//00 0F 0E 0D 0C 0B 0A 09 11 22 33 44 55 66 77 88
+//r2:
+//01 02 03 04 05 06 07 08 99 AA BB CC DD EE FF 00
+
+unsigned char s1_key[16]    = {0x00};
+unsigned char s1_r1[]       = {0x00, 0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09,
+                               0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}; 
+unsigned char s1_r2[]       = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                               0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00};
+
+/****************************************
+
+        Global Or Static Variable
+
+*****************************************/
+
+static BIO *out;
+
+/****************************************
+
+        Toolbox Function
+
+*****************************************/
+
+void invert(const void *s, int num)
+{
+    char *start = (char*)s;
+    char *end   = start + num - 1;
+    char tmp;
+
+    for(; start < end; start++, end--)
+    {
+        tmp = *start;
+        *start = *end;
+        *end = tmp;
+    }
+}
+
+void print_raw_data(const unsigned char *s, int n)
+{
+    int i;
+    for(i = 0; i < n; i++)
+        printf("%02x",s[i]);
+    printf("\n"); 
+}
+
+int Array128_print(BIO *bp, const unsigned char *array, int len, int mode)
+{
+    UNUSED(bp);
+    if(!array)
+        return 1;
+    unsigned char *p = (unsigned char*)OPENSSL_malloc(len);
+    unsigned char out[256];
+    int x, idx;
+    if(mode != ORDER_LITTLE_ENDIAN && mode != ORDER_BIG_ENDIAN)
+        return 2;
+    memcpy(p, array, len);
+    if(mode == ORDER_BIG_ENDIAN)
+        invert(p, len);
+
+#if VERBOSE_RAW_DATA == TRUE
+    for(idx = 0; idx < len; idx++)
+        printf("%02x", p[idx]);
+    printf("\n");
+#endif
+
+    for(x = 0, idx = 0; idx < len; idx++)
+    {
+        x += sprintf(out + x, "%02x", p[idx]);
+        if((idx + 1) % 4 == 0)
+        {
+            if((idx + 1) % 16 == 0)
+                x += sprintf(out + x, "\n");
+            else
+                x += sprintf(out + x, " ");
+        }
+    }
+    printf("%s\n", out);
+    OPENSSL_free(p);
+    return 0;
+}
+
+/*******************************************************************************
+**
+** Function         BN_hex_string_to_array
+**
+** Description      Translate a big number expressed by hex format string to 
+**                  array. Byte order subject to meaning of the number not 
+**                  string stored.
+**
+** Returns          void
+**
+*******************************************************************************/
+
+int BN_hex_string_to_array(const char *in, int str_len, unsigned char *out)
+{
+    int n = 0, move = 0;
+    BIGNUM *num = NULL;
+    //assume 128bit
+    if(str_len > KEY_128BIT_STR_LEN)
+    {
+        printf("%s: input string is too long \n", __func__);
+        return -1;
+    }
+
+    memset(out, 0, KEY_128BIT_LEN);
+
+    num = BN_new();
+    BN_hex2bn(&num, in);
+    BN_bn2bin(num, out);
+
+    n = BN_num_bytes(num);
+    move = str_len / 2 - n;
+    printf("%s: str_len is %d, n is %d, move is %d \n", __func__, str_len, n, move);
+    //prevent the case which 0 is at the beginning of the string, like "0000000003"
+    //BN regnize this as "3".
+    if(move > 0)
+    {
+       memmove(out + move, out, n);
+       memset(out, 0, move);
+    }
+#if VERBOSE_RAW_DATA == TRUE
+    print_raw_data(out, KEY_128BIT_LEN);
+#endif 
+
+    BN_free(num);
+}
+
+void msg_to_array128(char *msg, int str_len, unsigned char *array)
+{
+    char *p = msg, *idx = array;
+    unsigned char buf[KEY_128BIT_STR_LEN + 1] = {0};
+
+    while(str_len > KEY_128BIT_STR_LEN)
+    {
+        memcpy(buf, p, KEY_128BIT_STR_LEN);
+        buf[KEY_128BIT_STR_LEN] = '\0';
+        BN_hex_string_to_array(buf, KEY_128BIT_STR_LEN, idx);
+        p += KEY_128BIT_STR_LEN;
+        idx += KEY_128BIT_LEN;
+        str_len -= KEY_128BIT_STR_LEN;
+    }
+    memcpy(buf, p, str_len);
+    buf[str_len] = '\0';
+    BN_hex_string_to_array(buf, str_len, idx);
+}
+
+void concatenate_data(unsigned char *buf, unsigned char *text1, int len1, ...)
+{
+    va_list argp;
+    unsigned char *param = NULL;
+    int param_len;
+
+    if(buf == NULL)
+        return;
+
+    ARRAY_TO_STREAM(buf, text1, len1);
+
+    va_start(argp, len1);
+
+    while(1)
+    {
+        param = va_arg(argp, unsigned char*);
+        //use NULL as terminator
+        if(param == NULL)
+            break;
+        param_len = va_arg(argp, int);
+        ARRAY_TO_STREAM(buf, param, param_len);
+    }
+    va_end(argp);
+
+    return;
+}
+
+void xor_128(unsigned char *a, unsigned char *b) 
+{
+  int i;
+
+  for (i = 0; i < 16; i++) {
+    a[i] = a[i] ^ b[i];
+  }
+}
+
+/****************************************
+
+        Cryptography Function
+
+*****************************************/
+
+int AES_128_encrypt(const unsigned char *userKey, const unsigned char *in,
+                    unsigned char *out)
+{
+    int ret;
+    AES_KEY k;
+
+    if((ret = AES_set_encrypt_key(userKey, 128, &k) < 0))
+        return ret;
+
+    AES_encrypt(in, out, &k);
+    return 0;
+}
+
+int calculate_aes_cmac(const unsigned char *key,
+                       const unsigned char *msg, int msg_len,
+                       unsigned char *mac, size_t* mac_len)
+{
+    CMAC_CTX *ctx = CMAC_CTX_new();
+    CMAC_Init(ctx, key, 16, EVP_aes_128_cbc(), NULL);
+    CMAC_Update(ctx, msg, msg_len);
+    CMAC_Final(ctx, mac, mac_len);
+
+    CMAC_CTX_free(ctx);
+    return 0; 
+}                    
+
+EC_KEY *calculate_pubkey(int nid, const char *priv_str)
+{
+    int ok = 0;
+    EC_KEY *k = NULL;
+    BIGNUM *priv = NULL, *pub_x = NULL, *pub_y = NULL;
+    EC_POINT *pub = NULL;
+    const EC_GROUP *grp;
+
+    k = EC_KEY_new_by_curve_name(nid);
+    if (!k)
+        goto err;
+    if(!BN_hex2bn(&priv, priv_str))
+        goto err;
+    if (!priv)
+        goto err;
+    if (!EC_KEY_set_private_key(k, priv))
+        goto err;
+    grp = EC_KEY_get0_group(k);
+    pub = EC_POINT_new(grp);
+    if (!pub)
+        goto err;
+    if (!EC_POINT_mul(grp, pub, priv, NULL, NULL, NULL))
+        goto err;
+    if (!EC_KEY_set_public_key(k, pub))
+        goto err;
+    ok = 1;
+
+    pub_x = BN_new();
+    pub_y = BN_new();
+    if(!pub_x || !pub_y)
+        goto err;
+    if (EC_METHOD_get_field_type(EC_GROUP_method_of(grp)) ==
+        NID_X9_62_prime_field) {
+        if (!EC_POINT_get_affine_coordinates_GFp
+            (grp, EC_KEY_get0_public_key(k), pub_x, pub_y, NULL))
+            goto err;
+    }
+# ifndef OPENSSL_NO_EC2M
+    else {
+        if (!EC_POINT_get_affine_coordinates_GF2m(grp,
+                                                  EC_KEY_get0_public_key(k),
+                                                  pub_x, pub_y, NULL))
+            goto err;
+    }
+# endif
+    BIO_printf(out, "pub_x: ");
+    BN_print(out, pub_x);
+    BIO_printf(out, "\n");
+    BIO_printf(out, "pub_y: ");
+    BN_print(out, pub_y);
+    BIO_printf(out, "\n");
+
+ err:
+    BN_clear_free(priv);
+    EC_POINT_free(pub);
+    BN_free(pub_x);
+    BN_free(pub_y);
+    if (ok)
+        return k;
+    EC_KEY_free(k);
+    return NULL;
+}
+
+EC_POINT* make_ec_point(int NID, const char *x, const char *y)
+{
+    EC_KEY* key = NULL;
+    EC_POINT *point = NULL;
+    const EC_GROUP *group = NULL;
+    BIGNUM *x_coordinate = NULL, *y_coordinate = NULL;
+    int is_char_two, ret;
+
+    key = EC_KEY_new_by_curve_name(NID);
+    group = EC_KEY_get0_group(key);
+    point = EC_POINT_new(group);
+
+    if(!point)
+        goto err;
+
+    if(EC_METHOD_get_field_type(EC_GROUP_method_of(group)) == NID_X9_62_characteristic_two_field)
+        is_char_two = 1;
+
+    if(!BN_hex2bn(&x_coordinate, x))
+        goto err;
+    if(!BN_hex2bn(&y_coordinate, y))
+        goto err;
+
+    if(is_char_two)
+#ifdef OPENSSL_NO_EC2M
+        goto err;
+#else
+        if(!EC_POINT_set_affine_coordinates_GF2m(group, point,
+                                                 x_coordinate, y_coordinate, NULL))
+            goto err;
+#endif
+    else
+    {
+        if(!EC_POINT_set_affine_coordinates_GFp(group, point,
+                                                x_coordinate, y_coordinate, NULL))
+            goto err;
+    }
+    ret = 1;
+
+err:
+    EC_KEY_free(key);
+    BN_free(x_coordinate);
+    BN_free(y_coordinate);
+    if(!ret)
+        EC_POINT_free(point);
+    return point;
+}
+
+unsigned char* calculate_DHKey(EC_KEY *local, EC_POINT *remote)
+{
+    int key_len = 0;
+    unsigned char *dh_key = NULL;
+    if(!local || !remote)
+        return NULL;
+
+    key_len = (EC_GROUP_get_degree(EC_KEY_get0_group(local)) + 7) / 8;
+    dh_key = (unsigned char *)OPENSSL_zalloc(key_len);
+    if(dh_key == NULL)
+        return NULL;
+    if(!ECDH_compute_key(dh_key, key_len, remote, local, 0))
+    {
+        OPENSSL_free(dh_key);
+        return NULL;
+    }
+
+    Array128_print(out, dh_key, key_len, ORDER_LITTLE_ENDIAN);
+    return dh_key;
+}
+
+void calculate_f4(unsigned char *U, unsigned char *V, unsigned char* X,
+                  unsigned char *Z, unsigned char *output)
+{
+    unsigned char msg[F4_FUNCTION_MSG_LEN];
+    size_t mac_len;
+
+    concatenate_data(msg, U, 32, V, 32, Z, 1, NULL);
+    Array128_print(out, msg, F4_FUNCTION_MSG_LEN, ORDER_LITTLE_ENDIAN);
+    calculate_aes_cmac(X, msg, F4_FUNCTION_MSG_LEN, output, &mac_len);
+    Array128_print(out, output, mac_len, ORDER_LITTLE_ENDIAN);
+}
+
+void calculate_f5_key(unsigned char *W, unsigned char *T)
+{
+    //SALT:
+    //6C 88 83 91 aa f5 a5 38 60 37 0b db 5a 60 83 be
+    unsigned char salt[] = {0x6c, 0x88, 0x83, 0x91, 0xaa, 0xf5, 0xa5, 0x38,
+                            0x60, 0x37, 0x0b, 0xdb, 0x5a, 0x60, 0x83, 0xbe};
+    size_t mac_len;
+
+    calculate_aes_cmac(salt, W, 32, T, &mac_len);
+    printf("key for f5:\n");
+    Array128_print(out, T, mac_len, ORDER_LITTLE_ENDIAN);
+}
+
+void calculate_f5_mac_key_or_ltk(unsigned char *T,  unsigned char *Counter,
+                                 unsigned char *N1, unsigned char *N2,
+                                 unsigned char *A1, unsigned char *A2,
+                                 unsigned char *output)
+{
+    unsigned char msg[F5_FUNCTION_MSG_LEN];
+    size_t mac_len;
+
+    unsigned char keyID[]  = {0x62, 0x74, 0x6c, 0x65};
+    unsigned char Length[] = {0x01, 0x00};
+
+    concatenate_data(msg, Counter, 1, keyID, 4, N1, 16, N2, 16, A1, 7, A2, 7,
+                     Length, 2, NULL);
+    calculate_aes_cmac(T, msg, F5_FUNCTION_MSG_LEN, output, &mac_len);
+    printf("mac key or ltk: \n");
+    Array128_print(out, output, mac_len, ORDER_LITTLE_ENDIAN);
+}
+
+void calculate_f5(unsigned char *W, unsigned char *N1, unsigned char* N2,
+                  unsigned char *A1, unsigned char *A2,
+                  unsigned char *mac_key, unsigned char *ltk)
+{
+    unsigned char T[16];
+    unsigned char counter_mac_key[1] = {0x00};
+    unsigned char counter_ltk[1] = {0x01};
+
+    calculate_f5_key(W, T);
+    calculate_f5_mac_key_or_ltk(T, counter_mac_key, N1, N2,
+                                A1, A2,mac_key);
+    calculate_f5_mac_key_or_ltk(T, counter_ltk, N1, N2,
+                                A1, A2, ltk);
+}
+
+void calculate_f6(unsigned char *W, unsigned char *N1, unsigned char* N2,
+                  unsigned char *R, unsigned char *IOcap,
+                  unsigned char *A1,unsigned char *A2, unsigned char *output)
+{
+    unsigned char msg[F6_FUNCTION_MSG_LEN];
+    size_t mac_len;
+
+    concatenate_data(msg, N1, 16, N2, 16, R, 16, IOcap, 3, A1, 7, A2, 7, NULL);
+    calculate_aes_cmac(W, msg, F6_FUNCTION_MSG_LEN, output, &mac_len);
+    printf("E: \n");
+    Array128_print(out, output, mac_len, ORDER_LITTLE_ENDIAN);
+}
+
+unsigned long calculate_g2(unsigned char *U, unsigned char *V, unsigned char *X,
+                           unsigned char *Y)
+{
+    unsigned char msg[G2_FUNCTION_MSG_LEN];
+    unsigned char output[16];
+    unsigned char *p = NULL;
+    unsigned long value;
+    size_t mac_len;
+
+    concatenate_data(msg, U, 32, V, 32, Y, 16, NULL);
+    calculate_aes_cmac(X, msg, G2_FUNCTION_MSG_LEN, output, &mac_len);
+    printf("AES-CMAC: \n");
+    Array128_print(out, output, mac_len, ORDER_LITTLE_ENDIAN);
+    invert(output, mac_len);
+
+    p = output;
+    STREAM_TO_ULONG(value, p);
+    printf("%ld\n", value);
+    while(value > MAX_PASSKEY_VAL) value -= (MAX_PASSKEY_VAL + 1);
+    printf("Compare value is: %ld\n", value);
+    return value;
+}
+
+void calculate_h6(unsigned char *W, unsigned char *keyID, unsigned char *output)
+{
+    unsigned char msg[H6_FUNCTION_MSG_LEN];
+    size_t mac_len;
+
+    concatenate_data(msg, keyID, 4, NULL);
+    calculate_aes_cmac(W, msg, H6_FUNCTION_MSG_LEN, output, &mac_len);
+    printf("AES-CMAC: \n");
+    Array128_print(out, output, mac_len, ORDER_LITTLE_ENDIAN);
+}
+
+void calculate_h7(unsigned char *W, unsigned char *SALT, unsigned char *output)
+{
+    unsigned char msg[H7_FUNCITON_MSG_LEN];
+    size_t mac_len;
+
+    concatenate_data(msg, W, 16, NULL);
+    calculate_aes_cmac(SALT, msg, H7_FUNCITON_MSG_LEN, output, &mac_len);
+    printf("AES-CMAC: \n");
+    Array128_print(out, output, mac_len, ORDER_LITTLE_ENDIAN);
+}
+
+void calculate_c1(unsigned char *key, unsigned char *r, unsigned char *pres,
+                  unsigned char *preq, unsigned char *iat, unsigned char *ia,
+                  unsigned char *rat, unsigned char *ra, unsigned char *output)
+{
+    unsigned char p1[16], p2[16];
+    unsigned char padding[4] = {0x00};
+
+    //p1 = pres || preq || rat’ || iat’
+    concatenate_data(p1, pres, 7, preq, 7, rat, 1, iat, 1, NULL);
+    //p2 = padding || ia || ra
+    concatenate_data(p2, padding, 4, ia, 6, ra, 6, NULL);
+    //c1 (k, r, preq, pres, iat, rat, ia, ra) = e(k, e(k, r XOR p1) XOR p2)
+    xor_128(p1, r);
+    AES_128_encrypt(key, p1, output);
+    xor_128(p2, output);
+    AES_128_encrypt(key, p2, output);
+
+    Array128_print(out, output, 16, ORDER_LITTLE_ENDIAN);
+}
+
+void calculate_s1(unsigned char *key, unsigned char *r1, unsigned char *r2,
+                  unsigned char *output)
+{
+    unsigned char r[16];
+
+    //r ’ = r1’ || r2 ’
+    concatenate_data(r, &r1[8], 8, &r2[8], 8, NULL);
+    //s1 (k, r1 , r2 ) = e(k, r’)
+    AES_128_encrypt(key, r, output);
+    Array128_print(out, output, 16, ORDER_LITTLE_ENDIAN);
+}
+
+int main()
+{
+    unsigned char ciphertext[16] = {0};
+    unsigned char k_buf[16] = {0};
+    unsigned char input_buf[16] = {0};
+    unsigned char input_msg_buf[64] = {0};
+    unsigned char mac_out[16] = {0};
+    size_t mac_len;
+    int ret;
+    int i, n;
+    EC_KEY *key = NULL; 
+
+    out = BIO_new(BIO_s_file());
+    if(out == NULL)
+        return -1;
+    BIO_set_fp(out, stdout, BIO_NOCLOSE | BIO_FP_TEXT);
+
+    printf("----------test aes-128 standard----------\n");
+    //test D1 AES_128(key,0)
+    BN_hex_string_to_array(userKey_s, strlen(userKey_s), k_buf);
+    //printf("%02x\n",k_buf[0]);
+    ret = AES_128_encrypt(k_buf, plaintext, ciphertext);
+    Array128_print(out, ciphertext, 16, ORDER_LITTLE_ENDIAN);
+    ret = AES_128_encrypt(userKey, plaintext, ciphertext);
+    Array128_print(out, ciphertext, 16, ORDER_LITTLE_ENDIAN);
+    printf("----------test end----------\n\n");
+
+    printf("----------test ah calculation-----------\n");
+    BN_hex_string_to_array(IRK, strlen(IRK), k_buf);
+    BN_hex_string_to_array(prand, strlen(prand), input_buf);
+    ret = AES_128_encrypt(k_buf, input_buf, ciphertext);
+    Array128_print(out, ciphertext, 16, ORDER_LITTLE_ENDIAN);
+    printf("----------test end----------\n\n");
+
+    printf("----------test aes_cmac standard----------\n");
+    //test aes-cmac with empty string
+    printf("******test with empty msg******\n");
+    BN_hex_string_to_array(userKey_s, strlen(userKey_s), k_buf);
+    calculate_aes_cmac(k_buf, NULL, 0, mac_out, &mac_len);
+    Array128_print(out, mac_out, 16, ORDER_LITTLE_ENDIAN);
+    //test aes-cmac with len = 16 string
+    printf("\n******test with len = 16 msg******\n");
+    BN_hex_string_to_array(userKey_s, strlen(userKey_s), k_buf);
+    BN_hex_string_to_array(msg_16, strlen(msg_16), input_msg_buf);
+    //constent of string is double to array 
+    calculate_aes_cmac(k_buf, input_msg_buf, strlen(msg_16)/2, mac_out, &mac_len);
+    Array128_print(out, mac_out, 16, ORDER_LITTLE_ENDIAN);
+    //test aes-camc with len = 40 string
+    printf("\n******test with len = 40 msg******\n");
+    BN_hex_string_to_array(userKey_s, strlen(userKey_s), k_buf);
+    msg_to_array128(msg_40, strlen(msg_40), input_msg_buf);
+    calculate_aes_cmac(k_buf, input_msg_buf, strlen(msg_40)/2, mac_out, &mac_len);
+    Array128_print(out, mac_out, mac_len, ORDER_LITTLE_ENDIAN);
+    printf("\n******test with len = 64 msh******\n");
+    BN_hex_string_to_array(userKey_s, strlen(userKey_s), k_buf);
+    msg_to_array128(msg_64, strlen(msg_64), input_msg_buf);
+    calculate_aes_cmac(k_buf, input_msg_buf, strlen(msg_64)/2, mac_out, &mac_len);
+    Array128_print(out, mac_out, mac_len, ORDER_LITTLE_ENDIAN);
+    printf("----------test end----------\n\n");
+
+    printf("----------test public key generateion---------\n");
+    printf("*******test for base point********\n");
+    key = calculate_pubkey(NID_X9_62_prime256v1, priv_key1);
+    EC_KEY_free(key);
+    printf("*******test for normal point********\n");
+    key = calculate_pubkey(NID_X9_62_prime256v1, priv_key);
+
+    printf("*******test for dh key generateion************\n");
+    EC_POINT *p = make_ec_point(NID_X9_62_prime256v1, remote_public_x,
+                                remote_public_y);
+    unsigned char *dh_key = calculate_DHKey(key, p);
+    OPENSSL_free(dh_key);
+    EC_KEY_free(key);
+    printf("----------test end----------\n\n");
+
+    printf("******test for concatenate data**************\n");
+    unsigned char input_f4[F4_FUNCTION_MSG_LEN];
+    concatenate_data(input_f4, U, 32, V, 32, &Z, 1, NULL);
+    Array128_print(out, input_f4, F4_FUNCTION_MSG_LEN, ORDER_LITTLE_ENDIAN);
+    printf("----------test end----------\n\n");
+
+    printf("******test for f4 function********\n");
+    calculate_f4(U, V, X, &Z, mac_out);
+    printf("----------test end----------\n\n");
+
+    printf("******test for f5 function********\n");
+    unsigned char mac_key[16];
+    unsigned char ltk[16];
+    calculate_f5(f5_dhkey, f5_N1, f5_N2, f5_A1, f5_A2, mac_key, ltk);
+    printf("----------test end----------\n\n");
+
+    printf("******test for f6 function********\n");
+    calculate_f6(f6_MacKey, f6_N1, f6_N2, f6_R, f6_IOcap, f6_A1, f6_A2, mac_out);
+    printf("----------test end ----------\n\n");
+
+    printf("******test for g2 function********\n");
+    calculate_g2(g2_U, g2_V, g2_X, g2_Y);
+    printf("----------test end ----------\n\n");
+
+    printf("******test for h6 function********\n");
+    calculate_h6(h6_Key, h6_keyID, mac_out);
+    printf("----------test end ----------\n\n");
+
+    printf("******test for h7 function********\n");
+    calculate_h7(h7_Key, h7_SALT, mac_out);
+    printf("----------test end ----------\n\n");
+
+    printf("******test for c1 function********\n");
+    calculate_c1(c1_key, c1_r, c1_pres, c1_preq, c1_iat, c1_ia, c1_rat, c1_ra, ciphertext);
+    printf("----------test end -----------\n\n");
+
+    printf("******test for s1 function********\n");
+    calculate_s1(s1_key, s1_r1, s1_r2, ciphertext);
+    printf("----------test end -----------\n\n");
+
+    BIO_free(out);
+    return 0;
+}
